@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Field Survey Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#1B1B1B;color:#F2F2F2;font-family:"IBM Plex Mono",ui-monospace,monospace;display:flex;align-items:center;justify-content:center;min-height:100vh}
+.box{width:min(440px,90vw);border:1px solid #3A3A3A;border-top:5px solid #92D400;border-radius:6px;padding:34px 34px 26px;background:#232323;text-align:center}
+h1{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;font-size:30px;letter-spacing:.05em;text-transform:uppercase;margin:0;color:#FFF}
+h1 span{color:#92D400}
+p{font-size:12px;color:#9E9E9E;margin:8px 0 22px}
+label{display:block;text-align:left;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#9E9E9E;margin:12px 0 4px}
+input{width:100%;box-sizing:border-box;background:#1B1B1B;border:1px solid #454545;border-radius:4px;color:#F2F2F2;font-family:inherit;font-size:14px;padding:10px 12px}
+input:focus{outline:2px solid #92D400;border-color:#92D400}
+button{width:100%;margin-top:18px;background:#92D400;border:none;border-radius:4px;color:#121212;font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:17px;letter-spacing:.08em;text-transform:uppercase;padding:11px;cursor:pointer}
+button:disabled{opacity:.5;cursor:wait}
+#err{color:#FF6B4A;font-size:11.5px;min-height:16px;margin-top:12px}
+.foot{font-size:10px;color:#6E6E6E;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>Field <span>Survey</span> Dashboard</h1>
+  <p>Monster Brewing — sign in with your company email</p>
+  <form id="f">
+    <label for="em">Email</label>
+    <input type="email" id="em" autocomplete="username" placeholder="you@monsterbrewing.com" autofocus>
+    <label for="pw">Password</label>
+    <input type="password" id="pw" autocomplete="current-password">
+    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:11px;color:#9E9E9E;text-transform:none;letter-spacing:0">
+      <input type="checkbox" id="remBox" style="width:auto"> Remember me on this device
+    </label>
+    <a href="#" id="setLink" style="display:inline-block;margin-top:12px;font-size:11px;color:#92D400;text-decoration:none;letter-spacing:0;text-transform:none">First time here, or forgot your password? Create / reset it &rsaquo;</a>
+    <div id="setPanel" style="display:none">
+      <label for="npw2">Confirm password</label>
+      <input type="password" id="npw2" autocomplete="new-password" placeholder="Type your password again">
+      <div style="font-size:11px;color:#9E9E9E;margin-top:8px;line-height:1.5">Enter your @monsterbrewing.com email, choose a password (8+ characters), and type it twice. Your login is saved in this browser on this device — on a new device, just create it again with any password.</div>
+    </div>
+    <button id="go" type="submit">Sign in</button>
+  </form>
+  <div id="err"></div>
+  <div class="foot">Monster Brewing employees only · logins are per-device · KARMA surveys + buyer commitments · Q3 2026.</div>
+</div>
+<script>
+
+const MK="nPqU6syvd/7WvZh2+sKlSqjDRIpuSxVE3uQyRs9c8dE=";const PIV="__PIV__",PCT="__PCT__";
+const b2a=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function sha256hex(s){const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('');}
+
+// remember-me (stored only in this browser)
+try{
+  const saved=JSON.parse(localStorage.getItem('fsd_cred')||'null');
+  if(saved){document.getElementById('em').value=saved.e;document.getElementById('pw').value=atob(saved.p);document.getElementById('remBox').checked=true;}
+}catch(_){}
+document.getElementById('remBox').addEventListener('change',e=>{if(!e.target.checked)try{localStorage.removeItem('fsd_cred');}catch(_){}});
+const a2b=u=>btoa(String.fromCharCode(...new Uint8Array(u)));
+document.getElementById('setLink').addEventListener('click',e=>{e.preventDefault();const p=document.getElementById('setPanel');p.style.display=p.style.display==='none'?'block':'none';});
+document.getElementById('f').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const err=document.getElementById('err'),btn=document.getElementById('go');
+  err.textContent='';btn.disabled=true;btn.textContent='Signing in\u2026';
+  try{
+    if(!(window.crypto&&crypto.subtle))throw new Error('nocrypto');
+    const email=document.getElementById('em').value.trim().toLowerCase();
+    if(!/^[a-z0-9._%+-]+@monsterbrewing\.com$/.test(email))throw new Error('domain');
+    const pwStr=document.getElementById('pw').value;
+    if(!pwStr)throw new Error('badpw');
+    const eh=await sha256hex(email);
+    let rec=null;try{rec=JSON.parse(localStorage.getItem('fsd_acct_'+eh)||'null');}catch(_){}
+    const panelOpen=document.getElementById('setPanel').style.display!=='none';
+    const conf=document.getElementById('npw2').value;
+    if(rec&&!(panelOpen&&conf)){
+      const h=await sha256hex(rec.s+'|'+pwStr);
+      if(h!==rec.h)throw new Error('badpw');
+    }else{
+      if(!panelOpen||!conf){
+        document.getElementById('setPanel').style.display='block';
+        btn.disabled=false;btn.textContent='Create login & sign in';
+        err.textContent='First sign-in on this device \u2014 type your password again below to create your login.';
+        document.getElementById('npw2').focus();
+        return;
+      }
+      if(pwStr.length<8)throw new Error('short');
+      if(pwStr!==conf)throw new Error('mismatch');
+      const s=a2b(crypto.getRandomValues(new Uint8Array(12)));
+      try{localStorage.setItem('fsd_acct_'+eh,JSON.stringify({s:s,h:await sha256hex(s+'|'+pwStr),e:email}));}catch(_){throw new Error('nostore');}
+    }
+    const mkey=await crypto.subtle.importKey('raw',b2a(MK),'AES-GCM',false,['decrypt']);
+    const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:b2a(PIV)},mkey,b2a(PCT));
+    try{if(document.getElementById('remBox').checked)localStorage.setItem('fsd_cred',JSON.stringify({e:email,p:btoa(pwStr)}));}catch(_){}
+    document.open();document.write(new TextDecoder().decode(plain));document.close();
+  }catch(ex){
+    btn.disabled=false;btn.textContent='Sign in';
+    const m=ex.message;
+    err.textContent=m==='nocrypto'?'This browser blocks decryption for local files \u2014 open in Chrome, Edge, or Firefox.'
+      :m==='domain'?'This site is only accessible to Monster Brewing employees \u2014 sign in with your @monsterbrewing.com email.'
+      :m==='short'?'Password must be at least 8 characters.'
+      :m==='mismatch'?'Passwords do not match.'
+      :m==='nostore'?'This browser is blocking local storage, so a login can\u2019t be saved here.'
+      :'Incorrect password for this email on this device. Forgot it? Use \u201cCreate / reset it\u201d below.';
+  }
+});
+</script>
+<form name="feedback" netlify netlify-honeypot="bot-field" hidden><input name="reporter_name"><input name="reporter_email"><input name="category"><textarea name="message"></textarea><input name="context"><input name="submitted_at"><input name="bot-field"></form>
+</body>
+</html>
